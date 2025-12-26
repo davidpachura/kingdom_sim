@@ -26,6 +26,11 @@ fn main() {
     .run();
 }
 
+const WORLD_SIZE: i32 = 4096;
+const CHUNK_SIZE: i32 = 256;
+const CHUNKS_SIZE: i32 = WORLD_SIZE/CHUNK_SIZE;
+
+
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -46,19 +51,33 @@ fn setup(
         Transform::from_xyz(0.0, 0.0, 1000.0),
     ));
 
-    let mut mesh = Mesh::new(TriangleList, RenderAssetUsages::default());
+    
+    for chunk_x in 0..CHUNKS_SIZE {
+        for chunk_y in 0..CHUNKS_SIZE {
+            let mesh = generate_chunk(chunk_x, chunk_y);
 
+            commands.spawn((
+                Mesh2d(meshes.add(mesh)),
+                MeshMaterial2d(materials.add(Color::from(GREEN))),
+                Transform::default(),
+            ));
+        }
+    }
+}
+
+fn generate_chunk(
+    chunk_x: i32,
+    chunk_y: i32,
+) -> Mesh {
+    let mut mesh = Mesh::new(TriangleList, RenderAssetUsages::default());
     let mut positions = Vec::new();
     let mut indices = Vec::new();
     let mut index_offset = 0;
 
-    let world_width = 256;
-    let world_height = 256;
-
-    for x in 0..world_width {
-        for y in 0..world_height {
-            let x = x as f32;
-            let y = y as f32;
+    for x in 0..CHUNK_SIZE {
+        for y in 0..CHUNK_SIZE {
+            let x = (x + (chunk_x * CHUNK_SIZE)) as f32;
+            let y = (y + (chunk_y * CHUNK_SIZE)) as f32;
 
             // vertices
             positions.push([x,     y,     0.0]); // v0
@@ -79,11 +98,7 @@ fn setup(
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_indices(Indices::U32(indices));
 
-    commands.spawn((
-        Mesh2d(meshes.add(mesh)),
-        MeshMaterial2d(materials.add(Color::from(GREEN))),
-        Transform::default(),
-    ));
+    return mesh;
 }
 
 fn controls(
