@@ -2787,6 +2787,7 @@ name = "kingdom_sim"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_mesh",
 ]
 
 [[package]]

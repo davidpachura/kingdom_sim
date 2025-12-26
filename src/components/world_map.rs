@@ -19,5 +19,7 @@ pub enum Biome {
     Grassland,
     Forest,
     Desert,
+    Hill,
+    Mountain,
 }
 

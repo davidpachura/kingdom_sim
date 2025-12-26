@@ -1,15 +1,26 @@
 use bevy::{
+    asset::RenderAssetUsages,
     camera::Viewport,
     color::palettes::{
         css::{GREEN},
     },
     math::ops::powf,
     prelude::*,
+    render::render_resource::PrimitiveTopology::TriangleList,
+    window::WindowResolution,
 };
+use bevy_mesh::Indices;
 
 fn main() {
     App::new()
-    .add_plugins(DefaultPlugins)
+    .add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            resolution: WindowResolution::new(1600, 900),
+            title: "Kingdom Sim".into(),
+            ..default()
+        }),
+        ..default()
+    }))
     .add_systems(Startup, setup)
     .add_systems(FixedUpdate, controls)
     .run();
@@ -31,13 +42,47 @@ fn setup(
                 ..default()
             }),
             ..default()
-        }
+        },
+        Transform::from_xyz(0.0, 0.0, 1000.0),
     ));
 
+    let mut mesh = Mesh::new(TriangleList, RenderAssetUsages::default());
+
+    let mut positions = Vec::new();
+    let mut indices = Vec::new();
+    let mut index_offset = 0;
+
+    let world_width = 256;
+    let world_height = 256;
+
+    for x in 0..world_width {
+        for y in 0..world_height {
+            let x = x as f32;
+            let y = y as f32;
+
+            // vertices
+            positions.push([x,     y,     0.0]); // v0
+            positions.push([x + 1.0, y,     0.0]); // v1
+            positions.push([x + 1.0, y + 1.0, 0.0]); // v2
+            positions.push([x,     y + 1.0, 0.0]); // v3
+
+            // triangles
+            indices.extend_from_slice(&[
+                index_offset,     index_offset + 1, index_offset + 2,
+                index_offset + 2, index_offset + 3, index_offset,
+            ]);
+
+            index_offset += 4;
+        }
+    }
+
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_indices(Indices::U32(indices));
 
     commands.spawn((
-        Mesh2d(meshes.add(Rectangle::new(16.0, 16.0))),
+        Mesh2d(meshes.add(mesh)),
         MeshMaterial2d(materials.add(Color::from(GREEN))),
+        Transform::default(),
     ));
 }
 
@@ -81,16 +126,16 @@ fn controls(
     if let Some(viewport) = camera.viewport.as_mut() {
         // Viewport movement controls
         if input.pressed(KeyCode::KeyW) {
-            viewport.physical_position.y = viewport.physical_position.y.saturating_sub(uspeed);
-        }
-        if input.pressed(KeyCode::KeyS) {
             viewport.physical_position.y += uspeed;
         }
+        if input.pressed(KeyCode::KeyS) {
+            viewport.physical_position.y = viewport.physical_position.y.saturating_sub(uspeed);
+        }
         if input.pressed(KeyCode::KeyA) {
-            viewport.physical_position.x = viewport.physical_position.x.saturating_sub(uspeed);
+            viewport.physical_position.x += uspeed;
         }
         if input.pressed(KeyCode::KeyD) {
-            viewport.physical_position.x += uspeed;
+            viewport.physical_position.x = viewport.physical_position.x.saturating_sub(uspeed);
         }
 
         // Bound viewport position so it doesn't go off-screen
