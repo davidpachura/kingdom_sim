@@ -7,8 +7,7 @@ use bevy::{
     window::WindowResolution,
 };
 use bevy_mesh::Indices;
-use rand::{Rng, SeedableRng};
-use rand::rngs::SmallRng;
+use noise::{NoiseFn, OpenSimplex};
 use rayon::prelude::*;
 
 use crate::components::world_map::*;
@@ -54,21 +53,7 @@ fn setup(
         Transform::from_xyz(0.0, 0.0, 1000.0),
     ));
 
-    let mut squares: Vec<Square> = (0..WORLD_SIZE * WORLD_SIZE)
-    .into_par_iter()
-    .map(|i| {
-        let mut rng = SmallRng::from_os_rng();
-        let elevation = rng.random_range(0..=10);
-        let biome = if elevation <= 3 {
-            Biome::Ocean
-        } else {
-            Biome::Grassland
-        };
-        Square {biome: biome, elevation: elevation as f32}
-    })
-    .collect();
-
-    let world_map = WorldMap {width: WORLD_SIZE as u32, height: WORLD_SIZE as u32, squares: squares};
+    let world_map = generate_logical_world();
     
     for chunk_x in 0..CHUNKS_SIZE {
         for chunk_y in 0..CHUNKS_SIZE {
@@ -81,6 +66,38 @@ fn setup(
             ));
         }
     }
+}
+
+fn generate_logical_world() -> WorldMap {
+    let noise = OpenSimplex::new(12345);
+    let scale = 0.01;
+    let max_elevation = 100;
+
+    let mut squares: Vec<Square> = (0..WORLD_SIZE * WORLD_SIZE)
+    .into_par_iter()
+    .map(|i| {
+        let noise = noise.clone();
+
+        let x = i % WORLD_SIZE;
+        let y = i / WORLD_SIZE;
+
+        let elevation = noise.get([x as f64 * scale, y as f64 * scale]);
+        let elevation_f32 = ((elevation + 1.0)/2.0 * max_elevation as f64) as f32;
+
+        let biome = if elevation_f32 <= 30.0 {
+            Biome::Ocean
+        } else if elevation_f32 <= 70.0 {
+            Biome::Grassland
+        } else {
+            Biome::Mountain
+        };
+
+        Square { elevation: elevation_f32, biome }
+    })
+    .collect();
+
+    let world_map = WorldMap {width: WORLD_SIZE as u32, height: WORLD_SIZE as u32, squares: squares};
+    world_map
 }
 
 fn generate_chunk(
@@ -116,11 +133,16 @@ fn generate_chunk(
                 colors.push([0.0, 0.0, 1.0, 1.0]);
                 colors.push([0.0, 0.0, 1.0, 1.0]);
                 colors.push([0.0, 0.0, 1.0, 1.0]);
+            } else if square.biome == Biome::Grassland {
+                colors.push([0.0, 1.0, 0.0, 1.0]);
+                colors.push([0.0, 1.0, 0.0, 1.0]);
+                colors.push([0.0, 1.0, 0.0, 1.0]);
+                colors.push([0.0, 1.0, 0.0, 1.0]);
             } else {
-                colors.push([0.0, 1.0, 0.0, 1.0]);
-                colors.push([0.0, 1.0, 0.0, 1.0]);
-                colors.push([0.0, 1.0, 0.0, 1.0]);
-                colors.push([0.0, 1.0, 0.0, 1.0]);
+                colors.push([0.5, 0.5, 0.5, 1.0]);
+                colors.push([0.5, 0.5, 0.5, 1.0]);
+                colors.push([0.5, 0.5, 0.5, 1.0]);
+                colors.push([0.5, 0.5, 0.5, 1.0]);
             }
 
             // triangles

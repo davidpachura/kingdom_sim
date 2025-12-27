@@ -6,5 +6,6 @@ edition = "2024"
 [dependencies]
 bevy = "0.17.3"
 bevy_mesh = "0.17.3"
+noise = "0.8"
 rand = { version = "0.9", features = ["small_rng"] }
 rayon = "1.11.0"
