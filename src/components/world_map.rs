@@ -13,6 +13,7 @@ pub struct Square {
     pub elevation: f32,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Biome {
     Ocean,
     Coast,
