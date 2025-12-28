@@ -69,11 +69,11 @@ fn setup(
 }
 
 fn generate_logical_world() -> WorldMap {
-    let seed = 7456;
+    let seed = 87654;
     let noise_terrain = OpenSimplex::new(seed);
     let noise_continental = OpenSimplex::new(seed + 1);
-    let scale_terrain = 0.002;
-    let scale_continental = 0.0002;
+    let scale_terrain = 0.005; //.005
+    let scale_continental = 0.0005; //.0005
     let max_elevation = 100.0;
     let num_of_octaves = 4;
 
