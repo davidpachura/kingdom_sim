@@ -69,35 +69,74 @@ fn setup(
 }
 
 fn generate_logical_world() -> WorldMap {
-    let noise = OpenSimplex::new(12345);
-    let scale = 0.01;
-    let max_elevation = 100;
+    let seed = 7456;
+    let noise_terrain = OpenSimplex::new(seed);
+    let noise_continental = OpenSimplex::new(seed + 1);
+    let scale_terrain = 0.002;
+    let scale_continental = 0.0002;
+    let max_elevation = 100.0;
+    let num_of_octaves = 4;
 
     let mut squares: Vec<Square> = (0..WORLD_SIZE * WORLD_SIZE)
     .into_par_iter()
     .map(|i| {
-        let noise = noise.clone();
+        let noise_terrain = noise_terrain.clone();
+        let noise_continental = noise_continental.clone();
 
         let x = i % WORLD_SIZE;
         let y = i / WORLD_SIZE;
 
-        let elevation = noise.get([x as f64 * scale, y as f64 * scale]);
-        let elevation_f32 = ((elevation + 1.0)/2.0 * max_elevation as f64) as f32;
+        let mut scale_terrain = scale_terrain;
+        let mut amplitude = 1.0;
+        let mut elevation_terrain = 0.0;
+        let mut max_possible_amplitude = 0.0;
 
-        let biome = if elevation_f32 <= 30.0 {
+        for _i in 0..num_of_octaves {
+            elevation_terrain += noise_terrain.get([x as f64 * scale_terrain, y as f64 * scale_terrain]) * amplitude;
+            max_possible_amplitude += amplitude;
+
+            scale_terrain = scale_terrain * 2.0;
+            amplitude = amplitude / 2.0;
+        }
+
+        let elevation_continental = noise_continental.get([x as f64 * scale_continental, y as f64 * scale_continental]);
+
+        let sea_bias = 0.075;
+
+        let elevation_normalized = (elevation_continental - sea_bias) + ((elevation_terrain / max_possible_amplitude)*get_land_strength(elevation_continental));
+
+        let elevation_final = ((elevation_normalized + 1.0)/2.0) * max_elevation;
+
+        let sea_level = 0.48;
+        let mountain_level = 0.7;
+
+        let biome = if elevation_final <= (max_elevation * sea_level) {
             Biome::Ocean
-        } else if elevation_f32 <= 70.0 {
+        } else if elevation_final <= (max_elevation * mountain_level) {
             Biome::Grassland
         } else {
             Biome::Mountain
         };
 
-        Square { elevation: elevation_f32, biome }
+        Square { elevation: elevation_final as f32, biome }
     })
     .collect();
 
     let world_map = WorldMap {width: WORLD_SIZE as u32, height: WORLD_SIZE as u32, squares: squares};
     world_map
+}
+
+fn get_land_strength(
+    elevation: f64
+) -> f64 {
+    match elevation {
+        -1.0 => 0.0,
+        -1.0..=-0.5 => 0.1,
+        -0.5..=0.0 => 0.5,
+        0.0..=0.5 => 0.8,
+        0.5..=1.0 => 1.0,
+        _ => 0.0
+    } 
 }
 
 fn generate_chunk(
@@ -122,7 +161,6 @@ fn generate_chunk(
             let index = ((y_i32 * WORLD_SIZE) + x_i32) as usize;
             let square = &world_map.squares[index];
 
-            // vertices
             positions.push([x,     y,     0.0]); // v0
             positions.push([x + 1.0, y,     0.0]); // v1
             positions.push([x + 1.0, y + 1.0, 0.0]); // v2
@@ -145,7 +183,6 @@ fn generate_chunk(
                 colors.push([0.5, 0.5, 0.5, 1.0]);
             }
 
-            // triangles
             indices.extend_from_slice(&[
                 index_offset,     index_offset + 1, index_offset + 2,
                 index_offset + 2, index_offset + 3, index_offset,
