@@ -1,5 +1,7 @@
+use bevy::state::state::States;
+
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-enum GameState {
+pub enum GameState {
     #[default]
     MainMenu,
     WorldGenSetup,

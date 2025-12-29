@@ -9,8 +9,14 @@ use bevy::{
 use bevy_mesh::Indices;
 use noise::{NoiseFn, OpenSimplex};
 use rayon::prelude::*;
-use crate::components::world::*;
+use crate::{
+    components::world::*,
+    states::game_state::*, 
+    systems::main_menu::*,
+};
 mod components;
+mod states;
+mod systems;
 
 fn main() {
     App::new()
@@ -22,6 +28,10 @@ fn main() {
         }),
         ..default()
     }))
+    .init_state::<GameState>()
+    .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
+    .add_systems(Update, main_menu_buttons.run_if(in_state(GameState::MainMenu)))
+    .add_systems(OnExit(GameState::MainMenu), cleanup_main_menu)
     .add_systems(Startup, setup)
     .add_systems(FixedUpdate, controls)
     .run();
@@ -52,19 +62,19 @@ fn setup(
         Transform::from_xyz(0.0, 0.0, 1000.0),
     ));
 
-    let world_map = generate_logical_world();
+    // let world_map = generate_logical_world();
     
-    for chunk_x in 0..CHUNKS_SIZE {
-        for chunk_y in 0..CHUNKS_SIZE {
-            let mesh = generate_chunk(chunk_x, chunk_y, &world_map);
+    // for chunk_x in 0..CHUNKS_SIZE {
+    //     for chunk_y in 0..CHUNKS_SIZE {
+    //         let mesh = generate_chunk(chunk_x, chunk_y, &world_map);
 
-            commands.spawn((
-                Mesh2d(meshes.add(mesh)),
-                MeshMaterial2d(materials.add(ColorMaterial::from(Color::WHITE))),
-                Transform::default(),
-            ));
-        }
-    }
+    //         commands.spawn((
+    //             Mesh2d(meshes.add(mesh)),
+    //             MeshMaterial2d(materials.add(ColorMaterial::from(Color::WHITE))),
+    //             Transform::default(),
+    //         ));
+    //     }
+    // }
 }
 
 fn generate_logical_world() -> WorldMap {
