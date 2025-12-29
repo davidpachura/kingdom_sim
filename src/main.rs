@@ -9,8 +9,7 @@ use bevy::{
 use bevy_mesh::Indices;
 use noise::{NoiseFn, OpenSimplex};
 use rayon::prelude::*;
-
-use crate::components::world_map::*;
+use crate::components::world::*;
 mod components;
 
 fn main() {
