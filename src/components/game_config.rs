@@ -14,10 +14,8 @@ pub struct InputValue {
 #[derive(Component)]
 pub struct GameConfigUI;
 
-#[derive(Component, PartialEq, Eq, Debug, Clone, Copy)]
-pub enum TextField {
-    Seed,
-}
+#[derive(Component)]
+pub struct SeedField;
 
 #[derive(Component)]
 pub enum GameConfigAction {

@@ -29,10 +29,10 @@ pub fn setup_game_config(mut commands: Commands) {
             InputValue {
                 text: String::new()
             },
-            TextField::Seed,
+            SeedField,
             children![(
                 Text::new(""),
-                TextField::Seed,
+                SeedField,
                 TextFont {
                     font_size: 20.0,
                     ..default()
@@ -154,16 +154,14 @@ fn is_printable_char(chr: char) -> bool {
 
 pub fn update_text_display(
     query: Query<(&InputValue, &Children), Changed<InputValue>>,
-    mut text_query: Query<(&mut Text, &TextField)>,
+    mut text_query: Query<&mut Text>,
 ) {
     for (input, children) in &query {
         for &child in children {
-            if let Ok((mut text, text_field)) = text_query.get_mut(child) {
+            if let Ok(mut text) = text_query.get_mut(child) {
                 println!("Updating text display");
-                if *text_field == TextField::Seed{
-                    text.clear();
-                    text.push_str(&input.text);
-                }
+                text.clear();
+                text.push_str(&input.text);
             }
         }
     }

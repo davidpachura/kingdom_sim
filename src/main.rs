@@ -10,9 +10,9 @@ use bevy_mesh::Indices;
 use noise::{NoiseFn, OpenSimplex};
 use rayon::prelude::*;
 use crate::{
-    components::world::*,
+    components::{game_config::{InputValue, SeedField}, world::*, world_gen::WorldData},
     states::game_state::*, 
-    systems::{main_menu::*, game_config::*}
+    systems::{game_config::*, main_menu::*}
 };
 mod components;
 mod states;
@@ -33,8 +33,10 @@ fn main() {
     .add_systems(Update, main_menu_buttons.run_if(in_state(GameState::MainMenu)))
     .add_systems(OnExit(GameState::MainMenu), cleanup_main_menu)
     .add_systems(OnEnter(GameState::WorldGenSetup), setup_game_config)
-    .add_systems(Update, (game_config_buttons, game_config_text_input, update_text_display, focus_text_inputs).chain().run_if(in_state(GameState::WorldGenSetup)))
-    .add_systems(OnExit(GameState::WorldGenSetup), cleanup_game_config)
+    .add_systems(Update, (game_config_buttons, game_config_text_input, update_text_display, focus_text_inputs).run_if(in_state(GameState::WorldGenSetup)))
+    .add_systems(OnExit(GameState::WorldGenSetup), (read_worldgen_inputs, cleanup_game_config).chain())
+    .add_systems(OnEnter(GameState::WorldGenerating), generate_world)
+    .add_systems(Update, (render_world).run_if(in_state(GameState::Playing)))
     .add_systems(Startup, setup)
     .add_systems(FixedUpdate, controls)
     .run();
@@ -47,8 +49,6 @@ const CHUNKS_SIZE: i32 = WORLD_SIZE/CHUNK_SIZE;
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     window: Single<&Window>
 ) {
     let window_size = window.resolution.physical_size().as_vec2();
@@ -64,24 +64,81 @@ fn setup(
         },
         Transform::from_xyz(0.0, 0.0, 1000.0),
     ));
-
-    // let world_map = generate_logical_world();
-    
-    // for chunk_x in 0..CHUNKS_SIZE {
-    //     for chunk_y in 0..CHUNKS_SIZE {
-    //         let mesh = generate_chunk(chunk_x, chunk_y, &world_map);
-
-    //         commands.spawn((
-    //             Mesh2d(meshes.add(mesh)),
-    //             MeshMaterial2d(materials.add(ColorMaterial::from(Color::WHITE))),
-    //             Transform::default(),
-    //         ));
-    //     }
-    // }
 }
 
-fn generate_logical_world() -> WorldMap {
-    let seed = 87654;
+fn read_worldgen_inputs(
+    mut commands: Commands,
+    seed_query: Query<&InputValue, With<SeedField>>,
+) {
+    let mut seed = 12345;
+
+    for input in &seed_query {
+        seed = input.text.parse::<u32>().unwrap_or(0);
+
+        println!("Seed: {seed}");
+    }
+
+    commands.spawn(
+            WorldData {
+                seed: seed
+            }
+        );
+}
+
+fn generate_world(
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
+    query: Query<&WorldData>,
+    despawn_query: Query<Entity, With<WorldData>>
+) {
+    let world_data = match query.single() {
+        Ok(map) => map,
+        Err(err) => {
+            error!("WorldMap query failed: {:?}", err);
+            return;
+            }
+    };
+    let world_map = generate_logical_world(world_data.seed);
+
+    for entity in despawn_query {
+        commands.entity(entity).despawn();
+    }
+
+    commands.spawn(world_map);
+
+    next_state.set(GameState::Playing);
+}
+
+fn render_world(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<&WorldMap>,
+) {
+    let world_map = match query.single() {
+    Ok(map) => map,
+    Err(err) => {
+        error!("WorldMap query failed: {:?}", err);
+        return;
+        }
+    };
+
+    for chunk_x in 0..CHUNKS_SIZE {
+        for chunk_y in 0..CHUNKS_SIZE {
+            let mesh = generate_chunk(chunk_x, chunk_y, &world_map);
+
+            commands.spawn((
+                Mesh2d(meshes.add(mesh)),
+                MeshMaterial2d(materials.add(ColorMaterial::from(Color::WHITE))),
+                Transform::default(),
+            ));
+        }
+    }
+}
+
+fn generate_logical_world(
+    seed: u32
+) -> WorldMap {
     let noise_terrain = OpenSimplex::new(seed);
     let noise_continental = OpenSimplex::new(seed + 1);
     let scale_terrain = 0.005; //.005
