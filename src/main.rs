@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use crate::{
     components::world::*,
     states::game_state::*, 
-    systems::main_menu::*,
+    systems::{main_menu::*, game_config::*}
 };
 mod components;
 mod states;
@@ -32,6 +32,9 @@ fn main() {
     .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
     .add_systems(Update, main_menu_buttons.run_if(in_state(GameState::MainMenu)))
     .add_systems(OnExit(GameState::MainMenu), cleanup_main_menu)
+    .add_systems(OnEnter(GameState::WorldGenSetup), setup_game_config)
+    .add_systems(Update, (game_config_buttons, game_config_text_input, update_text_display, focus_text_inputs).chain().run_if(in_state(GameState::WorldGenSetup)))
+    .add_systems(OnExit(GameState::WorldGenSetup), cleanup_game_config)
     .add_systems(Startup, setup)
     .add_systems(FixedUpdate, controls)
     .run();
