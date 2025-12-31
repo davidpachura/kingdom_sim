@@ -8,5 +8,6 @@ pub struct WorldData{
     pub num_of_octaves: u32,
     pub sea_threshold: f64,
     pub mountain_threshold: f64,
+    pub scaling_factor: f64,
 }
 

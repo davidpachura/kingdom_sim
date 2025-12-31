@@ -1,58 +1,74 @@
+use std::f64::consts::PI;
+
+use crate::{
+    components::{
+        game_config::{
+            ContinentalScaleField, InputValue, MountainThresholdField, OctaveField,
+            ScalingFactorField, SeaThresholdField, SeedField, TerrainScaleField,
+        },
+        world::*,
+        world_gen::WorldData,
+    },
+    states::game_state::*,
+    systems::{game_config::*, main_menu::*},
+};
 use bevy::{
-    asset::RenderAssetUsages,
-    camera::Viewport,
-    math::ops::powf,
-    prelude::*,
-    render::render_resource::PrimitiveTopology::TriangleList,
-    window::WindowResolution,
+    asset::RenderAssetUsages, camera::Viewport, math::ops::powf, prelude::*,
+    render::render_resource::PrimitiveTopology::TriangleList, window::WindowResolution,
 };
 use bevy_mesh::Indices;
 use noise::{NoiseFn, OpenSimplex};
 use rand::RngCore;
 use rayon::prelude::*;
-use crate::{
-    components::{game_config::{ContinentalScaleField, InputValue, MountainThresholdField, OctaveField, SeaThresholdField, SeedField, TerrainScaleField}, world::*, world_gen::WorldData},
-    states::game_state::*, 
-    systems::{game_config::*, main_menu::*}
-};
 mod components;
 mod states;
 mod systems;
 
 fn main() {
     App::new()
-    .add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            resolution: WindowResolution::new(1600, 900),
-            title: "Kingdom Sim".into(),
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                resolution: WindowResolution::new(1600, 900),
+                title: "Kingdom Sim".into(),
+                ..default()
+            }),
             ..default()
-        }),
-        ..default()
-    }))
-    .init_state::<GameState>()
-    .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
-    .add_systems(Update, main_menu_buttons.run_if(in_state(GameState::MainMenu)))
-    .add_systems(OnExit(GameState::MainMenu), cleanup_main_menu)
-    .add_systems(OnEnter(GameState::WorldGenSetup), setup_game_config)
-    .add_systems(Update, (game_config_buttons, game_config_text_input, update_text_display, focus_text_inputs).run_if(in_state(GameState::WorldGenSetup)))
-    .add_systems(OnExit(GameState::WorldGenSetup), (read_worldgen_inputs, cleanup_game_config).chain())
-    .add_systems(OnEnter(GameState::WorldGenerating), generate_world)
-    .add_systems(OnEnter(GameState::Playing), render_world)
-    .add_systems(FixedUpdate, controls.run_if(in_state(GameState::Playing)))
-    .add_systems(OnExit(GameState::Playing), cleanup_world)
-    .add_systems(Startup, setup)
-    .run();
+        }))
+        .init_state::<GameState>()
+        .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
+        .add_systems(
+            Update,
+            main_menu_buttons.run_if(in_state(GameState::MainMenu)),
+        )
+        .add_systems(OnExit(GameState::MainMenu), cleanup_main_menu)
+        .add_systems(OnEnter(GameState::WorldGenSetup), setup_game_config)
+        .add_systems(
+            Update,
+            (
+                game_config_buttons,
+                game_config_text_input,
+                update_text_display,
+                focus_text_inputs,
+            )
+                .run_if(in_state(GameState::WorldGenSetup)),
+        )
+        .add_systems(
+            OnExit(GameState::WorldGenSetup),
+            (read_worldgen_inputs, cleanup_game_config).chain(),
+        )
+        .add_systems(OnEnter(GameState::WorldGenerating), generate_world)
+        .add_systems(OnEnter(GameState::Playing), render_world)
+        .add_systems(FixedUpdate, controls.run_if(in_state(GameState::Playing)))
+        .add_systems(OnExit(GameState::Playing), cleanup_world)
+        .add_systems(Startup, setup)
+        .run();
 }
 
 const WORLD_SIZE: i32 = 4096;
 const CHUNK_SIZE: i32 = 256;
-const CHUNKS_SIZE: i32 = WORLD_SIZE/CHUNK_SIZE;
+const CHUNKS_SIZE: i32 = WORLD_SIZE / CHUNK_SIZE;
 
-
-fn setup(
-    mut commands: Commands,
-    window: Single<&Window>
-) {
+fn setup(mut commands: Commands, window: Single<&Window>) {
     let window_size = window.resolution.physical_size().as_vec2();
     commands.spawn((
         Camera2d,
@@ -76,6 +92,7 @@ fn read_worldgen_inputs(
     octave_query: Query<&InputValue, With<OctaveField>>,
     sea_threshold_query: Query<&InputValue, With<SeaThresholdField>>,
     mountain_threshold_query: Query<&InputValue, With<MountainThresholdField>>,
+    scaling_factor_query: Query<&InputValue, With<ScalingFactorField>>,
 ) {
     let mut rng = rand::rng();
     let mut seed = rng.next_u32();
@@ -84,9 +101,10 @@ fn read_worldgen_inputs(
     let mut num_of_octaves = 4;
     let mut sea_threshold = 0.48;
     let mut mountain_threshold = 0.70;
+    let mut scaling_factor = 100.0;
 
     for input in &seed_query {
-        seed = input.text.parse::<u32>().unwrap_or(0);
+        seed = input.text.parse::<u32>().unwrap_or(seed);
     }
 
     for input in &terrain_scale_query {
@@ -94,11 +112,11 @@ fn read_worldgen_inputs(
     }
 
     for input in &continental_scale_query {
-        continental_scale = input.text.parse::<f64>().unwrap_or(0.0005);
+        continental_scale = input.text.parse::<f64>().unwrap_or(0.000999);
     }
 
     for input in &octave_query {
-        num_of_octaves = input.text.parse::<u32>().unwrap_or(4);
+        num_of_octaves = input.text.parse::<u32>().unwrap_or(20);
     }
 
     for input in &sea_threshold_query {
@@ -106,19 +124,22 @@ fn read_worldgen_inputs(
     }
 
     for input in &mountain_threshold_query {
-        mountain_threshold = input.text.parse::<f64>().unwrap_or( 0.70);
+        mountain_threshold = input.text.parse::<f64>().unwrap_or(0.70);
     }
 
-    commands.spawn(
-            WorldData {
-                seed: seed,
-                terrain_scale: terrain_scale,
-                continental_scale: continental_scale,
-                num_of_octaves: num_of_octaves,
-                sea_threshold: sea_threshold,
-                mountain_threshold: mountain_threshold,
-            }
-        );
+    for input in &scaling_factor_query {
+        scaling_factor = input.text.parse::<f64>().unwrap_or(100.0);
+    }
+
+    commands.spawn(WorldData {
+        seed: seed,
+        terrain_scale: terrain_scale,
+        continental_scale: continental_scale,
+        num_of_octaves: num_of_octaves,
+        sea_threshold: sea_threshold,
+        mountain_threshold: mountain_threshold,
+        scaling_factor: scaling_factor,
+    });
 }
 
 fn generate_world(
@@ -131,7 +152,7 @@ fn generate_world(
         Err(err) => {
             error!("WorldMap query failed: {:?}", err);
             return;
-            }
+        }
     };
     let world_map = generate_logical_world(world_data);
 
@@ -147,10 +168,10 @@ fn render_world(
     query: Query<&WorldMap>,
 ) {
     let world_map = match query.single() {
-    Ok(map) => map,
-    Err(err) => {
-        error!("WorldMap query failed: {:?}", err);
-        return;
+        Ok(map) => map,
+        Err(err) => {
+            error!("WorldMap query failed: {:?}", err);
+            return;
         }
     };
 
@@ -186,9 +207,7 @@ fn cleanup_world(
     }
 }
 
-fn generate_logical_world(
-    world_data: &WorldData
-) -> WorldMap {
+fn generate_logical_world(world_data: &WorldData) -> WorldMap {
     println!("Generating world");
     println!("Seed: {0}", world_data.seed);
     println!("T_Scale {0}", world_data.terrain_scale);
@@ -196,6 +215,7 @@ fn generate_logical_world(
     println!("O_num: {0}", world_data.num_of_octaves);
     println!("S_Threshold {0}", world_data.sea_threshold);
     println!("M_Threshold {0}", world_data.mountain_threshold);
+    println!("Scaling_Factor {0}", world_data.scaling_factor);
     let noise_terrain = OpenSimplex::new(world_data.seed);
     let noise_continental = OpenSimplex::new(world_data.seed + 1);
     let scale_terrain = world_data.terrain_scale; //.005
@@ -204,69 +224,84 @@ fn generate_logical_world(
     let num_of_octaves = world_data.num_of_octaves;
 
     let squares: Vec<Square> = (0..WORLD_SIZE * WORLD_SIZE)
-    .into_par_iter()
-    .map(|i| {
-        let noise_terrain = noise_terrain.clone();
-        let noise_continental = noise_continental.clone();
+        .into_par_iter()
+        .map(|i| {
+            let noise_terrain = noise_terrain.clone();
+            let noise_continental = noise_continental.clone();
 
-        let x = i % WORLD_SIZE;
-        let y = i / WORLD_SIZE;
+            let x = (i % WORLD_SIZE) as f64 / WORLD_SIZE as f64 * 2.0 * PI;
+            let y = (i / WORLD_SIZE) as f64 / WORLD_SIZE as f64 * 2.0 * PI;
 
-        let mut scale_terrain = scale_terrain;
-        let mut amplitude = 1.0;
-        let mut elevation_terrain = 0.0;
-        let mut max_possible_amplitude = 0.0;
+            let mut scale_terrain = scale_terrain;
+            let mut amplitude = 1.0;
+            let mut elevation_terrain = 0.0;
+            let mut max_possible_amplitude = 0.0;
 
-        for _i in 0..num_of_octaves {
-            elevation_terrain += noise_terrain.get([x as f64 * scale_terrain, y as f64 * scale_terrain]) * amplitude;
-            max_possible_amplitude += amplitude;
+            let scaling_factor = world_data.scaling_factor;
 
-            scale_terrain = scale_terrain * 2.0;
-            amplitude = amplitude / 2.0;
-        }
+            for _i in 0..num_of_octaves {
+                elevation_terrain += noise_terrain.get([
+                    x.cos() * scaling_factor * scale_terrain,
+                    x.sin() * scaling_factor * scale_terrain,
+                    y.cos() * scaling_factor * scale_terrain,
+                    y.sin() * scaling_factor * scale_terrain,
+                ]) * amplitude;
+                max_possible_amplitude += amplitude;
 
-        let elevation_continental = noise_continental.get([x as f64 * scale_continental, y as f64 * scale_continental]);
+                scale_terrain = scale_terrain * 2.0;
+                amplitude = amplitude / 2.0;
+            }
 
-        let sea_bias = 0.075;
+            let elevation_continental = noise_continental.get([
+                x.cos() * scaling_factor * scale_continental,
+                x.sin() * scaling_factor * scale_continental,
+                y.cos() * scaling_factor * scale_continental,
+                y.sin() * scaling_factor * scale_continental,
+            ]);
 
-        let elevation_normalized = (elevation_continental - sea_bias) + ((elevation_terrain / max_possible_amplitude)*get_land_strength(elevation_continental));
+            let sea_bias = 0.075;
 
-        let elevation_final = ((elevation_normalized + 1.0)/2.0) * max_elevation;
+            let elevation_normalized = (elevation_continental - sea_bias)
+                + ((elevation_terrain / max_possible_amplitude)
+                    * get_land_strength(elevation_continental));
 
-        let biome = if elevation_final <= (max_elevation * world_data.sea_threshold) {
-            Biome::Ocean
-        } else if elevation_final <= (max_elevation * world_data.mountain_threshold) {
-            Biome::Grassland
-        } else {
-            Biome::Mountain
-        };
+            let elevation_final = ((elevation_normalized + 1.0) / 2.0) * max_elevation;
 
-        Square { elevation: elevation_final as f32, biome }
-    })
-    .collect();
+            let biome = if elevation_final <= (max_elevation * world_data.sea_threshold) {
+                Biome::Ocean
+            } else if elevation_final <= (max_elevation * world_data.mountain_threshold) {
+                Biome::Grassland
+            } else {
+                Biome::Mountain
+            };
 
-    let world_map = WorldMap {width: WORLD_SIZE as u32, height: WORLD_SIZE as u32, squares: squares};
+            Square {
+                elevation: elevation_final as f32,
+                biome,
+            }
+        })
+        .collect();
+
+    let world_map = WorldMap {
+        width: WORLD_SIZE as u32,
+        height: WORLD_SIZE as u32,
+        squares: squares,
+    };
     world_map
 }
 
-fn get_land_strength(
-    elevation: f64
-) -> f64 {
+fn get_land_strength(elevation: f64) -> f64 {
     match elevation {
         -1.0 => 0.0,
         -1.0..=-0.5 => 0.1,
         -0.5..=0.0 => 0.5,
         0.0..=0.5 => 0.8,
         0.5..=1.0 => 1.0,
-        _ => 0.0
-    } 
+        _ => 0.0,
+    }
 }
 
-fn generate_chunk(
-    chunk_x: i32,
-    chunk_y: i32,
-    world_map: &WorldMap,
-) -> Mesh {
+fn generate_chunk(chunk_x: i32, chunk_y: i32, world_map: &WorldMap) -> Mesh {
     let mut mesh = Mesh::new(TriangleList, RenderAssetUsages::default());
     let mut positions = Vec::new();
     let mut colors = Vec::new();
@@ -281,13 +316,13 @@ fn generate_chunk(
             let x = x_i32 as f32;
             let y = y_i32 as f32;
 
-            let index = ((y_i32 * WORLD_SIZE) + x_i32) as usize;
+            let index = index_toroidal(x_i32, y_i32, WORLD_SIZE as i32);
             let square = &world_map.squares[index];
 
-            positions.push([x,     y,     0.0]); // v0
-            positions.push([x + 1.0, y,     0.0]); // v1
+            positions.push([x, y, 0.0]); // v0
+            positions.push([x + 1.0, y, 0.0]); // v1
             positions.push([x + 1.0, y + 1.0, 0.0]); // v2
-            positions.push([x,     y + 1.0, 0.0]); // v3
+            positions.push([x, y + 1.0, 0.0]); // v3
 
             if square.biome == Biome::Ocean {
                 colors.push([0.0, 0.0, 1.0, 1.0]);
@@ -307,8 +342,12 @@ fn generate_chunk(
             }
 
             indices.extend_from_slice(&[
-                index_offset,     index_offset + 1, index_offset + 2,
-                index_offset + 2, index_offset + 3, index_offset,
+                index_offset,
+                index_offset + 1,
+                index_offset + 2,
+                index_offset + 2,
+                index_offset + 3,
+                index_offset,
             ]);
 
             index_offset += 4;
@@ -321,6 +360,16 @@ fn generate_chunk(
     mesh.insert_indices(Indices::U32(indices));
 
     return mesh;
+}
+
+fn wrap(v: i32, max: i32) -> i32 {
+    ((v % max) + max) % max
+}
+
+fn index_toroidal(x: i32, y: i32, size: i32) -> usize {
+    let wx = wrap(x, size);
+    let wy = wrap(y, size);
+    (wy * size + wx) as usize
 }
 
 fn controls(
@@ -347,7 +396,7 @@ fn controls(
         transform.translation.x += fspeed;
     }
 
-     // Camera zoom controls
+    // Camera zoom controls
     if let Projection::Orthographic(projection2d) = &mut *projection {
         if input.pressed(KeyCode::Comma) {
             projection2d.scale *= powf(4.0f32, time.delta_secs());

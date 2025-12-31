@@ -33,6 +33,9 @@ pub struct SeaThresholdField;
 pub struct MountainThresholdField;
 
 #[derive(Component)]
+pub struct ScalingFactorField;
+
+#[derive(Component)]
 pub enum GameConfigAction {
     Generate,
     Back,
