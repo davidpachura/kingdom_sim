@@ -1,9 +1,8 @@
 use bevy::input::keyboard::Key;
-use bevy::{input::keyboard::KeyboardInput, prelude::*};
 use bevy::ui::Node;
+use bevy::{input::keyboard::KeyboardInput, prelude::*};
 
 use crate::{components::game_config::*, states::game_state::GameState};
-
 
 pub fn setup_game_config(mut commands: Commands) {
     commands.spawn((
@@ -18,64 +17,319 @@ pub fn setup_game_config(mut commands: Commands) {
         },
         BackgroundColor(Color::BLACK),
         GameConfigUI,
-        children![(
-            Button,
-            Node {
-                padding: UiRect::all(Val::Px(20.0)),
-                ..default()
-            },
-            BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
-            TextInput,
-            InputValue {
-                text: String::new()
-            },
-            SeedField,
-            children![(
-                Text::new(""),
-                SeedField,
+        children![
+            seed_field(),
+            terrain_scale_field(),
+            continental_scale_field(),
+            octave_field(),
+            sea_threshold_field(),
+            mountain_threshold_field(),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                GameConfigAction::Generate,
+                children![(
+                    Text::new("Generate"),
+                    TextFont {
+                        font_size: 32.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )]
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                GameConfigAction::Back,
+                children![(
+                    Text::new("Back to Menu"),
+                    TextFont {
+                        font_size: 32.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )]
+            ),
+        ],
+    ));
+}
+
+fn seed_field() -> impl Bundle {
+    return (
+        Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(16.0),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Seed:"),
                 TextFont {
                     font_size: 20.0,
                     ..default()
                 },
                 TextColor(Color::WHITE)
-            )]
-        ),
-        (
-            Button,
-            Node {
-                padding: UiRect::all(Val::Px(20.0)),
-                ..default()
-            },
-            BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
-            GameConfigAction::Generate,
-            children![(
-                Text::new("Generate"),
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                TextInput,
+                InputValue {
+                    text: String::new()
+                },
+                SeedField,
+                children![(
+                    Text::new(""),
+                    SeedField,
+                    TextFont {
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )]
+            )
+        ],
+    );
+}
+
+fn terrain_scale_field() -> impl Bundle {
+    return (
+        Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(16.0),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Terrain scale:"),
                 TextFont {
-                    font_size: 32.0,
+                    font_size: 20.0,
                     ..default()
                 },
                 TextColor(Color::WHITE)
-            )]
-        ),
-        (
-            Button,
-            Node {
-                padding: UiRect::all(Val::Px(20.0)),
-                ..default()
-            },
-            BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
-            GameConfigAction::Back,
-            children![(
-                Text::new("Back to Menu"),
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                TextInput,
+                InputValue {
+                    text: String::new()
+                },
+                TerrainScaleField,
+                children![(
+                    Text::new(""),
+                    TerrainScaleField,
+                    TextFont {
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )]
+            )
+        ],
+    );
+}
+
+fn continental_scale_field() -> impl Bundle {
+    return (
+        Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(16.0),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Continental scale:"),
                 TextFont {
-                    font_size: 32.0,
+                    font_size: 20.0,
                     ..default()
                 },
                 TextColor(Color::WHITE)
-            )]
-        ),
-        ]
-    ));
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                TextInput,
+                InputValue {
+                    text: String::new()
+                },
+                ContinentalScaleField,
+                children![(
+                    Text::new(""),
+                    ContinentalScaleField,
+                    TextFont {
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )]
+            )
+        ],
+    );
+}
+
+fn octave_field() -> impl Bundle {
+    return (
+        Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(16.0),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Number of octaves:"),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE)
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                TextInput,
+                InputValue {
+                    text: String::new()
+                },
+                OctaveField,
+                children![(
+                    Text::new(""),
+                    OctaveField,
+                    TextFont {
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )]
+            )
+        ],
+    );
+}
+
+fn sea_threshold_field() -> impl Bundle {
+    return (
+        Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(16.0),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Sea threshold:"),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                TextInput,
+                InputValue {
+                    text: String::new(),
+                },
+                SeaThresholdField,
+                children![(
+                    Text::new(""),
+                    SeaThresholdField,
+                    TextFont {
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )],
+            )
+        ],
+    );
+}
+
+fn mountain_threshold_field() -> impl Bundle {
+    return (
+        Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(16.0),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Mountain threshold:"),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                TextInput,
+                InputValue {
+                    text: String::new(),
+                },
+                MountainThresholdField,
+                children![(
+                    Text::new(""),
+                    MountainThresholdField,
+                    TextFont {
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )],
+            )
+        ],
+    );
 }
 
 pub fn focus_text_inputs(
@@ -85,13 +339,10 @@ pub fn focus_text_inputs(
 ) {
     for (entity, interaction) in &interactions {
         if *interaction == Interaction::Pressed {
-            // Unfocus all
             for e in &focused {
                 commands.entity(e).remove::<Focused>();
             }
 
-            // Focus clicked
-            println!("adding focused to {entity}");
             commands.entity(entity).insert(Focused);
         }
     }
@@ -99,14 +350,17 @@ pub fn focus_text_inputs(
 
 pub fn game_config_buttons(
     mut next_state: ResMut<NextState<GameState>>,
-    mut button_query: Query<(&Interaction, &GameConfigAction), (Changed<Interaction>, With<Button>)>,
+    mut button_query: Query<
+        (&Interaction, &GameConfigAction),
+        (Changed<Interaction>, With<Button>),
+    >,
 ) {
     for (interaction, action) in &mut button_query {
         if *interaction == Interaction::Pressed {
-            match action{
+            match action {
                 GameConfigAction::Generate => {
                     next_state.set(GameState::WorldGenerating);
-                },
+                }
                 GameConfigAction::Back => {
                     next_state.set(GameState::MainMenu);
                 }
@@ -119,7 +373,6 @@ pub fn game_config_text_input(
     mut keyboard_input_reader: MessageReader<KeyboardInput>,
     mut text_query: Query<&mut InputValue, With<Focused>>,
 ) {
-    
     if let Ok(mut input) = text_query.single_mut() {
         for keyboard_input in keyboard_input_reader.read() {
             if !keyboard_input.state.is_pressed() {
@@ -131,14 +384,13 @@ pub fn game_config_text_input(
                     input.text.pop();
                 }
                 (_, Some(inserted_text)) => {
-                // Make sure the text doesn't have any control characters,
-                // which can happen when keys like Escape are pressed
-                if inserted_text.chars().all(is_printable_char) {
-                    println!("Adding {inserted_text} to {0}", input.text);
-                    input.text.push_str(inserted_text);
+                    // Make sure the text doesn't have any control characters,
+                    // which can happen when keys like Escape are pressed
+                    if inserted_text.chars().all(is_printable_char) {
+                        input.text.push_str(inserted_text);
+                    }
                 }
-            }
-            _ => continue,
+                _ => continue,
             }
         }
     }
@@ -159,7 +411,6 @@ pub fn update_text_display(
     for (input, children) in &query {
         for &child in children {
             if let Ok(mut text) = text_query.get_mut(child) {
-                println!("Updating text display");
                 text.clear();
                 text.push_str(&input.text);
             }

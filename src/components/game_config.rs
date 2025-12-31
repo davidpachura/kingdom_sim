@@ -18,6 +18,21 @@ pub struct GameConfigUI;
 pub struct SeedField;
 
 #[derive(Component)]
+pub struct TerrainScaleField;
+
+#[derive(Component)]
+pub struct ContinentalScaleField;
+
+#[derive(Component)]
+pub struct OctaveField;
+
+#[derive(Component)]
+pub struct SeaThresholdField;
+
+#[derive(Component)]
+pub struct MountainThresholdField;
+
+#[derive(Component)]
 pub enum GameConfigAction {
     Generate,
     Back,

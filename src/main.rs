@@ -8,9 +8,10 @@ use bevy::{
 };
 use bevy_mesh::Indices;
 use noise::{NoiseFn, OpenSimplex};
+use rand::RngCore;
 use rayon::prelude::*;
 use crate::{
-    components::{game_config::{InputValue, SeedField}, world::*, world_gen::WorldData},
+    components::{game_config::{ContinentalScaleField, InputValue, MountainThresholdField, OctaveField, SeaThresholdField, SeedField, TerrainScaleField}, world::*, world_gen::WorldData},
     states::game_state::*, 
     systems::{game_config::*, main_menu::*}
 };
@@ -36,9 +37,10 @@ fn main() {
     .add_systems(Update, (game_config_buttons, game_config_text_input, update_text_display, focus_text_inputs).run_if(in_state(GameState::WorldGenSetup)))
     .add_systems(OnExit(GameState::WorldGenSetup), (read_worldgen_inputs, cleanup_game_config).chain())
     .add_systems(OnEnter(GameState::WorldGenerating), generate_world)
-    .add_systems(Update, (render_world).run_if(in_state(GameState::Playing)))
+    .add_systems(OnEnter(GameState::Playing), render_world)
+    .add_systems(FixedUpdate, controls.run_if(in_state(GameState::Playing)))
+    .add_systems(OnExit(GameState::Playing), cleanup_world)
     .add_systems(Startup, setup)
-    .add_systems(FixedUpdate, controls)
     .run();
 }
 
@@ -69,18 +71,52 @@ fn setup(
 fn read_worldgen_inputs(
     mut commands: Commands,
     seed_query: Query<&InputValue, With<SeedField>>,
+    terrain_scale_query: Query<&InputValue, With<TerrainScaleField>>,
+    continental_scale_query: Query<&InputValue, With<ContinentalScaleField>>,
+    octave_query: Query<&InputValue, With<OctaveField>>,
+    sea_threshold_query: Query<&InputValue, With<SeaThresholdField>>,
+    mountain_threshold_query: Query<&InputValue, With<MountainThresholdField>>,
 ) {
-    let mut seed = 12345;
+    let mut rng = rand::rng();
+    let mut seed = rng.next_u32();
+    let mut terrain_scale = 0.005;
+    let mut continental_scale = 0.0005;
+    let mut num_of_octaves = 4;
+    let mut sea_threshold = 0.48;
+    let mut mountain_threshold = 0.70;
 
     for input in &seed_query {
         seed = input.text.parse::<u32>().unwrap_or(0);
+    }
 
-        println!("Seed: {seed}");
+    for input in &terrain_scale_query {
+        terrain_scale = input.text.parse::<f64>().unwrap_or(0.005);
+    }
+
+    for input in &continental_scale_query {
+        continental_scale = input.text.parse::<f64>().unwrap_or(0.0005);
+    }
+
+    for input in &octave_query {
+        num_of_octaves = input.text.parse::<u32>().unwrap_or(4);
+    }
+
+    for input in &sea_threshold_query {
+        sea_threshold = input.text.parse::<f64>().unwrap_or(0.48);
+    }
+
+    for input in &mountain_threshold_query {
+        mountain_threshold = input.text.parse::<f64>().unwrap_or( 0.70);
     }
 
     commands.spawn(
             WorldData {
-                seed: seed
+                seed: seed,
+                terrain_scale: terrain_scale,
+                continental_scale: continental_scale,
+                num_of_octaves: num_of_octaves,
+                sea_threshold: sea_threshold,
+                mountain_threshold: mountain_threshold,
             }
         );
 }
@@ -89,7 +125,6 @@ fn generate_world(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
     query: Query<&WorldData>,
-    despawn_query: Query<Entity, With<WorldData>>
 ) {
     let world_data = match query.single() {
         Ok(map) => map,
@@ -98,11 +133,7 @@ fn generate_world(
             return;
             }
     };
-    let world_map = generate_logical_world(world_data.seed);
-
-    for entity in despawn_query {
-        commands.entity(entity).despawn();
-    }
+    let world_map = generate_logical_world(world_data);
 
     commands.spawn(world_map);
 
@@ -136,17 +167,43 @@ fn render_world(
     }
 }
 
-fn generate_logical_world(
-    seed: u32
-) -> WorldMap {
-    let noise_terrain = OpenSimplex::new(seed);
-    let noise_continental = OpenSimplex::new(seed + 1);
-    let scale_terrain = 0.005; //.005
-    let scale_continental = 0.0005; //.0005
-    let max_elevation = 100.0;
-    let num_of_octaves = 4;
+fn cleanup_world(
+    mut commands: Commands,
+    world_query: Query<Entity, With<WorldMap>>,
+    world_data_query: Query<Entity, With<WorldData>>,
+    mesh_query: Query<Entity, With<Mesh2d>>,
+) {
+    for entity in world_query {
+        commands.entity(entity).despawn();
+    }
 
-    let mut squares: Vec<Square> = (0..WORLD_SIZE * WORLD_SIZE)
+    for entity in mesh_query {
+        commands.entity(entity).despawn();
+    }
+
+    for entity in world_data_query {
+        commands.entity(entity).despawn();
+    }
+}
+
+fn generate_logical_world(
+    world_data: &WorldData
+) -> WorldMap {
+    println!("Generating world");
+    println!("Seed: {0}", world_data.seed);
+    println!("T_Scale {0}", world_data.terrain_scale);
+    println!("C_Scale {0}", world_data.continental_scale);
+    println!("O_num: {0}", world_data.num_of_octaves);
+    println!("S_Threshold {0}", world_data.sea_threshold);
+    println!("M_Threshold {0}", world_data.mountain_threshold);
+    let noise_terrain = OpenSimplex::new(world_data.seed);
+    let noise_continental = OpenSimplex::new(world_data.seed + 1);
+    let scale_terrain = world_data.terrain_scale; //.005
+    let scale_continental = world_data.continental_scale; //.0005
+    let max_elevation = 100.0;
+    let num_of_octaves = world_data.num_of_octaves;
+
+    let squares: Vec<Square> = (0..WORLD_SIZE * WORLD_SIZE)
     .into_par_iter()
     .map(|i| {
         let noise_terrain = noise_terrain.clone();
@@ -176,12 +233,9 @@ fn generate_logical_world(
 
         let elevation_final = ((elevation_normalized + 1.0)/2.0) * max_elevation;
 
-        let sea_level = 0.48;
-        let mountain_level = 0.7;
-
-        let biome = if elevation_final <= (max_elevation * sea_level) {
+        let biome = if elevation_final <= (max_elevation * world_data.sea_threshold) {
             Biome::Ocean
-        } else if elevation_final <= (max_elevation * mountain_level) {
+        } else if elevation_final <= (max_elevation * world_data.mountain_threshold) {
             Biome::Grassland
         } else {
             Biome::Mountain
@@ -272,6 +326,7 @@ fn generate_chunk(
 fn controls(
     camera_query: Single<(&mut Transform, &mut Projection)>,
     input: Res<ButtonInput<KeyCode>>,
+    mut next_state: ResMut<NextState<GameState>>,
     time: Res<Time<Fixed>>,
 ) {
     let (mut transform, mut projection) = camera_query.into_inner();
@@ -301,5 +356,9 @@ fn controls(
         if input.pressed(KeyCode::Period) {
             projection2d.scale *= powf(0.25f32, time.delta_secs());
         }
+    }
+
+    if input.pressed(KeyCode::Escape) {
+        next_state.set(GameState::MainMenu);
     }
 }
