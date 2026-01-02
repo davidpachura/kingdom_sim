@@ -23,7 +23,8 @@ pub fn setup_game_config(mut commands: Commands) {
             continental_scale_field(),
             octave_field(),
             sea_threshold_field(),
-            mountain_threshold_field(),
+            temperature_scale_field(),
+            moisture_scale_field(),
             scaling_factor_field(),
             (
                 Button,
@@ -288,7 +289,7 @@ fn sea_threshold_field() -> impl Bundle {
     );
 }
 
-fn mountain_threshold_field() -> impl Bundle {
+fn temperature_scale_field() -> impl Bundle {
     return (
         Node {
             width: Val::Percent(100.0),
@@ -300,7 +301,7 @@ fn mountain_threshold_field() -> impl Bundle {
         },
         children![
             (
-                Text::new("Mountain threshold:"),
+                Text::new("Temperature scale:"),
                 TextFont {
                     font_size: 20.0,
                     ..default()
@@ -318,10 +319,55 @@ fn mountain_threshold_field() -> impl Bundle {
                 InputValue {
                     text: String::new(),
                 },
-                MountainThresholdField,
+                TemperatureScaleField,
                 children![(
                     Text::new(""),
-                    MountainThresholdField,
+                    TemperatureScaleField,
+                    TextFont {
+                        font_size: 20.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE)
+                )],
+            )
+        ],
+    );
+}
+
+fn moisture_scale_field() -> impl Bundle {
+    return (
+        Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(16.0),
+            ..default()
+        },
+        children![
+            (
+                Text::new("Moisture scale:"),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(20.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                TextInput,
+                InputValue {
+                    text: String::new(),
+                },
+                MoistureScaleField,
+                children![(
+                    Text::new(""),
+                    MoistureScaleField,
                     TextFont {
                         font_size: 20.0,
                         ..default()

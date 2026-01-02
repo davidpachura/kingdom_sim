@@ -11,6 +11,8 @@ pub struct WorldMap {
 pub struct Square {
     pub biome: Biome,
     pub elevation: f32,
+    pub temperature: f32,
+    pub moisture: f32,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -22,5 +24,18 @@ pub enum Biome {
     Desert,
     Hill,
     Mountain,
+    Ice,
+    Alpine,
+    Snow,
+    Tundra,
+    BorealForest,
+    Taiga,
+    ColdDesert,
+    TemperateForest,
+    TemperateRainforest,
+    HotDesert,
+    Savanna,
+    SubtropicalForest,
+    TropicalRainforest,
 }
 

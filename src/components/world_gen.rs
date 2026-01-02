@@ -7,7 +7,8 @@ pub struct WorldData{
     pub continental_scale: f64,
     pub num_of_octaves: u32,
     pub sea_threshold: f64,
-    pub mountain_threshold: f64,
+    pub temperature_scale: f64,
+    pub moisture_scale: f64,
     pub scaling_factor: f64,
 }
 

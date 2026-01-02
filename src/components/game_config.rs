@@ -30,7 +30,10 @@ pub struct OctaveField;
 pub struct SeaThresholdField;
 
 #[derive(Component)]
-pub struct MountainThresholdField;
+pub struct TemperatureScaleField;
+
+#[derive(Component)]
+pub struct MoistureScaleField;
 
 #[derive(Component)]
 pub struct ScalingFactorField;
