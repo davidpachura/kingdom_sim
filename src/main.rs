@@ -128,11 +128,11 @@ fn read_worldgen_inputs(
     }
 
     for input in &temperature_scale_query {
-        temperature_scale = input.text.parse::<f64>().unwrap_or(0.0009);
+        temperature_scale = input.text.parse::<f64>().unwrap_or(0.0005);
     }
 
     for input in &moisture_scale_query {
-        moisture_scale = input.text.parse::<f64>().unwrap_or(0.00099);
+        moisture_scale = input.text.parse::<f64>().unwrap_or(0.0008);
     }
 
     for input in &scaling_factor_query {
