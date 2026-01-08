@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use crate::components::{world::*, world_gen::WorldData};
 use crate::states::game_state::GameState;
 
-const WORLD_SIZE: i32 = 4096;
+const WORLD_SIZE: i32 = 8192;
 const SEA_LEVEL: f64 = 0.48;
 
 pub fn generate_world(
@@ -98,9 +98,6 @@ fn generate_logical_world(world_data: &WorldData) -> WorldMap {
                     * get_land_strength(elevation_continental));
 
             let elevation_final = ((elevation_normalized + 1.0) / 2.0) * max_elevation;
-
-            let min_temperature = -10.0;
-            let max_temperature = 30.0;
 
             let y_lat = (i / WORLD_SIZE) as f64;
 

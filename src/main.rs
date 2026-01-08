@@ -5,6 +5,7 @@ use crate::{
             ScalingFactorField, SeaThresholdField, SeedField, TerrainScaleField,
             TemperatureScaleField,
         },
+        world::*,
         world_gen::WorldData,
     },
     states::game_state::*,
@@ -52,7 +53,8 @@ fn main() {
             (read_worldgen_inputs, cleanup_game_config).chain(),
         )
         .add_systems(OnEnter(GameState::WorldGenerating), generate_world)
-        .add_systems(OnEnter(GameState::Playing), render_world)
+        .add_systems(OnEnter(GameState::Playing), (render_world, setup_biome_display).chain())
+        .add_systems(Update, update_biome_display.run_if(in_state(GameState::Playing)))
         .add_systems(FixedUpdate, controls.run_if(in_state(GameState::Playing)))
         .add_systems(OnExit(GameState::Playing), cleanup_world)
         .add_systems(Startup, setup)

@@ -39,3 +39,6 @@ pub enum Biome {
     TropicalRainforest,
 }
 
+#[derive(Component)]
+pub struct BiomeDisplayUI;
+

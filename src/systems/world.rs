@@ -7,7 +7,7 @@ use bevy_mesh::Indices;
 use crate::components::world::*;
 use crate::states::game_state::GameState;
 
-const WORLD_SIZE: i32 = 4096;
+const WORLD_SIZE: i32 = 8192;
 const CHUNK_SIZE: i32 = 256;
 const CHUNKS_SIZE: i32 = WORLD_SIZE / CHUNK_SIZE;
 
@@ -43,6 +43,7 @@ pub fn cleanup_world(
     world_query: Query<Entity, With<WorldMap>>,
     world_data_query: Query<Entity, With<crate::components::world_gen::WorldData>>,
     mesh_query: Query<Entity, With<Mesh2d>>,
+    ui_query: Query<Entity, With<BiomeDisplayUI>>,
 ) {
     for entity in world_query {
         commands.entity(entity).despawn();
@@ -53,6 +54,10 @@ pub fn cleanup_world(
     }
 
     for entity in world_data_query {
+        commands.entity(entity).despawn();
+    }
+
+    for entity in ui_query {
         commands.entity(entity).despawn();
     }
 }
@@ -180,4 +185,74 @@ fn index_toroidal(x: i32, y: i32, size: i32) -> usize {
     let wx = wrap(x, size);
     let wy = wrap(y, size);
     (wy * size + wx) as usize
+}
+
+pub fn setup_biome_display(mut commands: Commands) {
+    commands.spawn((
+        BiomeDisplayUI,
+        Text::new(""),
+        TextFont {
+            font_size: 24.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.0),
+            left: Val::Px(10.0),
+            ..default()
+        },
+    ));
+}
+
+pub fn update_biome_display(
+    camera_query: Single<(&Camera, &GlobalTransform)>,
+    window_query: Single<&Window>,
+    world_query: Single<&WorldMap>,
+    mut ui_query: Single<&mut Text, With<BiomeDisplayUI>>,
+) {
+    let (camera, camera_transform) = *camera_query;
+    let window = *window_query;
+    let world_map = *world_query;
+
+    if let Some(cursor_position) = window.cursor_position() {
+        if let Ok(world_position) = camera.viewport_to_world(camera_transform, cursor_position) {
+            let x = world_position.origin.x as i32;
+            let y = world_position.origin.y as i32;
+
+            // Clamp to world bounds
+            if x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE {
+                let index = index_toroidal(x, y, WORLD_SIZE);
+                let square = &world_map.squares[index];
+                
+                let biome_name = match square.biome {
+                    Biome::Ocean => "Ocean",
+                    Biome::Coast => "Coast",
+                    Biome::Grassland => "Grassland",
+                    Biome::Forest => "Forest",
+                    Biome::Desert => "Desert",
+                    Biome::Hill => "Hill",
+                    Biome::Mountain => "Mountain",
+                    Biome::Ice => "Ice",
+                    Biome::Alpine => "Alpine",
+                    Biome::Snow => "Snow",
+                    Biome::Tundra => "Tundra",
+                    Biome::BorealForest => "Boreal Forest",
+                    Biome::Taiga => "Taiga",
+                    Biome::ColdDesert => "Cold Desert",
+                    Biome::TemperateForest => "Temperate Forest",
+                    Biome::TemperateRainforest => "Temperate Rainforest",
+                    Biome::HotDesert => "Hot Desert",
+                    Biome::Savanna => "Savanna",
+                    Biome::SubtropicalForest => "Subtropical Forest",
+                    Biome::TropicalRainforest => "Tropical Rainforest",
+                };
+
+                ui_query.0 = format!(
+                    "Biome: {}\nElevation: {:.1}\nTemperature: {:.1}°C\nMoisture: {:.1}",
+                    biome_name, square.elevation, square.temperature, square.moisture
+                );
+            }
+        }
+    }
 }
