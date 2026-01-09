@@ -451,7 +451,7 @@ pub fn game_config_buttons(
         if *interaction == Interaction::Pressed {
             match action {
                 GameConfigAction::Generate => {
-                    next_state.set(GameState::WorldGenerating);
+                    next_state.set(GameState::Playing);
                 }
                 GameConfigAction::Back => {
                     next_state.set(GameState::MainMenu);

@@ -1,3 +1,4 @@
+use bevy::platform::collections::HashMap;
 use bevy::{
     asset::RenderAssetUsages, math::ops::powf, prelude::*,
     render::render_resource::PrimitiveTopology::TriangleList,
@@ -5,11 +6,130 @@ use bevy::{
 use bevy_mesh::Indices;
 
 use crate::components::world::*;
+use crate::components::world_gen::WorldData;
 use crate::states::game_state::GameState;
+use crate::systems::world_gen::{generate_chunk_data, generate_square_at_position};
 
-const WORLD_SIZE: i32 = 8192;
-const CHUNK_SIZE: i32 = 256;
-const CHUNKS_SIZE: i32 = WORLD_SIZE / CHUNK_SIZE;
+pub const WORLD_SIZE: i32 = 8192;
+pub const CHUNK_SIZE: i32 = 64;
+pub const CHUNKS_SIZE: i32 = WORLD_SIZE / CHUNK_SIZE;
+pub const HALO: i32 = 1;
+pub const MAX_ELEVATION: f64 = 100.0;
+const VIEW_RADIUS: i32 = 1;
+
+#[derive(Resource)]
+pub struct LoadedChunks {
+    pub chunks: HashMap<(i32, i32), Entity>,
+}
+
+#[derive(Resource, Default)]
+pub struct CameraChunk {
+    pub x: i32,
+    pub y: i32,
+}
+
+pub fn update_chunks(
+    mut commands: Commands,
+    mut loaded: ResMut<LoadedChunks>,
+    camera_chunk: Res<CameraChunk>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<&WorldData>,
+) {
+    let world_data = match query.single() {
+        Ok(map) => map,
+        Err(err) => {
+            error!("WorldMap query failed: {:?}", err);
+            return;
+        }
+    };
+    let mut needed_chunks = HashMap::new();
+
+    for x in -VIEW_RADIUS..=VIEW_RADIUS {
+        for y in -VIEW_RADIUS..=VIEW_RADIUS {
+            let chunk_x = camera_chunk.x + x;
+            let chunk_y = camera_chunk.y + y;
+
+            needed_chunks.insert((chunk_x, chunk_y), true);
+        }
+    }
+
+    for (&(chunk_x, chunk_y), &entity) in loaded.chunks.iter() {
+        if !needed_chunks.contains_key(&(chunk_x, chunk_y)) {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    for (&(chunk_x, chunk_y), _) in needed_chunks.iter() {
+        if !loaded.chunks.contains_key(&(chunk_x, chunk_y)) {
+            let mesh = generate_chunk_stream(chunk_x, chunk_y, world_data);
+
+            let entity = commands
+                .spawn((
+                    Mesh2d(meshes.add(mesh)),
+                    MeshMaterial2d(materials.add(ColorMaterial::from(Color::WHITE))),
+                    Transform::default(),
+                ))
+                .id();
+
+            loaded.chunks.insert((chunk_x, chunk_y), entity);
+        }
+    }
+}
+
+
+
+pub fn generate_chunk_stream(chunk_x: i32, chunk_y: i32, world_data: &WorldData) -> Mesh {
+    let mut mesh = Mesh::new(TriangleList, RenderAssetUsages::default());
+    let mut positions = Vec::new();
+    let mut colors = Vec::new();
+    let mut indices = Vec::new();
+    let mut index_offset = 0;
+
+    let squares = generate_chunk_data(chunk_x, chunk_y, world_data);
+
+    for x_local in 0..CHUNK_SIZE {
+        for y_local in 0..CHUNK_SIZE {
+            let x_i32 = x_local + (chunk_x * CHUNK_SIZE);
+            let y_i32 = y_local + (chunk_y * CHUNK_SIZE);
+
+            let x = x_i32 as f32;
+            let y = y_i32 as f32;
+
+            let index = (y_local * (CHUNK_SIZE + HALO) + x_local) as usize;
+            let square = &squares[index];
+
+            positions.push([x, y, 0.0]); // v0
+            positions.push([x + 1.0, y, 0.0]); // v1
+            positions.push([x + 1.0, y + 1.0, 0.0]); // v2
+            positions.push([x, y + 1.0, 0.0]); // v3
+
+            let color = biome_to_color(square.biome);
+            colors.push(color);
+            colors.push(color);
+            colors.push(color);
+            colors.push(color);
+
+            indices.extend_from_slice(&[
+                index_offset,
+                index_offset + 1,
+                index_offset + 2,
+                index_offset + 2,
+                index_offset + 3,
+                index_offset,
+            ]);
+
+            index_offset += 4;
+        }
+    }
+
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_indices(Indices::U32(indices));
+
+    return mesh;
+}
 
 pub fn render_world(
     mut commands: Commands,

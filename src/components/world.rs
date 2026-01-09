@@ -7,7 +7,7 @@ pub struct WorldMap {
     pub squares: Vec<Square>,
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct Square {
     pub biome: Biome,
     pub elevation: f32,
@@ -15,8 +15,9 @@ pub struct Square {
     pub moisture: f32,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub enum Biome {
+    #[default]
     Ocean,
     Coast,
     Grassland,

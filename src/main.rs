@@ -1,19 +1,17 @@
 use crate::{
     components::{
         game_config::{
-            ContinentalScaleField, InputValue, MoistureScaleField, OctaveField,
-            ScalingFactorField, SeaThresholdField, SeedField, TerrainScaleField,
-            TemperatureScaleField,
+            ContinentalScaleField, InputValue, MoistureScaleField, OctaveField, ScalingFactorField,
+            SeaThresholdField, SeedField, TemperatureScaleField, TerrainScaleField,
         },
         world::*,
         world_gen::WorldData,
     },
     states::game_state::*,
-    systems::{game_config::*, main_menu::*, world_gen::generate_world, world::*},
+    systems::{game_config::*, main_menu::*, world::*, world_gen::generate_world},
 };
 use bevy::{
-    camera::Viewport, prelude::*,
-    window::WindowResolution,
+    camera::Viewport, platform::collections::HashMap, prelude::*, window::WindowResolution,
 };
 use rand::RngCore;
 mod components;
@@ -31,6 +29,10 @@ fn main() {
             ..default()
         }))
         .init_state::<GameState>()
+        .insert_resource(CameraChunk::default())
+        .insert_resource(LoadedChunks {
+            chunks: HashMap::new(),
+        })
         .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
         .add_systems(
             Update,
@@ -52,9 +54,15 @@ fn main() {
             OnExit(GameState::WorldGenSetup),
             (read_worldgen_inputs, cleanup_game_config).chain(),
         )
-        .add_systems(OnEnter(GameState::WorldGenerating), generate_world)
-        .add_systems(OnEnter(GameState::Playing), (render_world, setup_biome_display).chain())
-        .add_systems(Update, update_biome_display.run_if(in_state(GameState::Playing)))
+        // .add_systems(OnEnter(GameState::WorldGenerating), generate_world)
+        // .add_systems(OnEnter(GameState::Playing), (render_world, setup_biome_display).chain())
+        .add_systems(
+            Update,
+            (update_camera_chunk, update_chunks)
+                .chain()
+                .run_if(in_state(GameState::Playing)),
+        )
+        // .add_systems(Update, update_biome_display.run_if(in_state(GameState::Playing)))
         .add_systems(FixedUpdate, controls.run_if(in_state(GameState::Playing)))
         .add_systems(OnExit(GameState::Playing), cleanup_world)
         .add_systems(Startup, setup)
@@ -75,6 +83,23 @@ fn setup(mut commands: Commands, window: Single<&Window>) {
         },
         Transform::from_xyz(0.0, 0.0, 1000.0),
     ));
+}
+
+fn update_camera_chunk(
+    camera_q: Query<&Transform, With<Camera>>,
+    mut camera_chunk: ResMut<CameraChunk>,
+) {
+    let transform = camera_q.single();
+    let chunk = world_pos_to_chunk(transform.unwrap().translation);
+    camera_chunk.x = chunk.x;
+    camera_chunk.y = chunk.y;
+}
+
+fn world_pos_to_chunk(pos: Vec3) -> IVec2 {
+    IVec2::new(
+        (pos.x.floor() as i32).div_euclid(CHUNK_SIZE),
+        (pos.y.floor() as i32).div_euclid(CHUNK_SIZE),
+    )
 }
 
 fn read_worldgen_inputs(
@@ -129,6 +154,16 @@ fn read_worldgen_inputs(
     for input in &scaling_factor_query {
         scaling_factor = input.text.parse::<f64>().unwrap_or(1000.0);
     }
+
+    println!("World data");
+    println!("Seed: {0}", seed);
+    println!("T_Scale {0}", terrain_scale);
+    println!("C_Scale {0}", continental_scale);
+    println!("Temp_Scale {0}", temperature_scale);
+    println!("Moist_Scale {0}", moisture_scale);
+    println!("O_num: {0}", num_of_octaves);
+    println!("S_Threshold {0}", sea_threshold);
+    println!("Scaling_Factor {0}", scaling_factor);
 
     commands.spawn(WorldData {
         seed: seed,
